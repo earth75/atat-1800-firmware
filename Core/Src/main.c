@@ -22,12 +22,22 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usbd_hid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct
+{
+	uint8_t MODIFIER;
+	uint8_t RESERVED;
+	uint8_t KEYCODE1;
+	uint8_t KEYCODE2;
+	uint8_t KEYCODE3;
+	uint8_t KEYCODE4;
+	uint8_t KEYCODE5;
+	uint8_t KEYCODE6;
+}subKeyBoard;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -44,7 +54,8 @@
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-
+subKeyBoard keyBoardHIDsub = {0,0,0,0,0,0,0,0};
+extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,6 +112,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	  keyBoardHIDsub.MODIFIER=0x02;  // To press shift key<br>keyBoardHIDsub.KEYCODE1=0x04;  // Press A key
+	  keyBoardHIDsub.KEYCODE2=0x05;  // Press B key
+	  keyBoardHIDsub.KEYCODE3=0x06;  // Press C key
+	  USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+	  HAL_Delay(50); 		       // Press all key for 50 milliseconds
+	  keyBoardHIDsub.MODIFIER=0x00;  // To release shift key
+	  keyBoardHIDsub.KEYCODE1=0x00;  // Release A key
+	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
+	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
+	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+	  HAL_Delay(1000); 	       // Repeat this task on every 1 second
   }
   /* USER CODE END 3 */
 }
