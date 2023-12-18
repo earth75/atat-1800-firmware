@@ -37,12 +37,29 @@ typedef struct
 	uint8_t KEYCODE4;
 	uint8_t KEYCODE5;
 	uint8_t KEYCODE6;
-}subKeyBoard;
+}KeyBoardReport_t;
+
+//  +------+-------+
+//  |          16
+//  +------+-------+
+//  |
+//  +------+-------+
+typedef union{
+	unsigned int keyState;
+	struct{
+	   // LSB
+	   unsigned int brightness:16;
+	   unsigned int state:8;
+	   // MSB
+	};
+
+} keystate_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ROWS 6
+#define COLS 19
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,21 +70,47 @@ typedef struct
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+TIM_HandleTypeDef htim14;
+TIM_HandleTypeDef htim16;
+TIM_HandleTypeDef htim17;
+
 /* USER CODE BEGIN PV */
-subKeyBoard keyBoardHIDsub = {0,0,0,0,0,0,0,0};
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
+KeyBoardReport_t keyBoardHIDsub = {0,0,0,0,0,0,0,0};
+
+keystate_t Keyboard[ROWS][COLS];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM14_Init(void);
+static void MX_TIM16_Init(void);
+static void MX_TIM17_Init(void);
+static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void refreshKeys(void){
+
+}
+
+
+//invscodeit backlight drivers
+void initBL(void){
+
+}
+
+//refresh backlight levels and update drivers
+void refreshBL(void){
+
+}
 
 /* USER CODE END 0 */
 
@@ -101,6 +144,12 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM14_Init();
+  MX_TIM16_Init();
+  MX_TIM17_Init();
+
+  /* Initialize interrupts */
+  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -119,7 +168,6 @@ int main(void)
 	  USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
 	  HAL_Delay(50); 		       // Press all key for 50 milliseconds
 	  keyBoardHIDsub.MODIFIER=0x00;  // To release shift key
-	  keyBoardHIDsub.KEYCODE1=0x00;  // Release A key
 	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
 	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
 	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
@@ -174,6 +222,23 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief NVIC Configuration.
+  * @retval None
+  */
+static void MX_NVIC_Init(void)
+{
+  /* TIM14_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM14_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(TIM14_IRQn);
+  /* TIM16_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM16_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(TIM16_IRQn);
+  /* TIM17_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(TIM17_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(TIM17_IRQn);
+}
+
+/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -218,6 +283,101 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM14 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM14_Init(void)
+{
+
+  /* USER CODE BEGIN TIM14_Init 0 */
+
+  /* USER CODE END TIM14_Init 0 */
+
+  /* USER CODE BEGIN TIM14_Init 1 */
+
+  /* USER CODE END TIM14_Init 1 */
+  htim14.Instance = TIM14;
+  htim14.Init.Prescaler = 0;
+  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim14.Init.Period = 65535;
+  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM14_Init 2 */
+
+  /* USER CODE END TIM14_Init 2 */
+
+}
+
+/**
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
+
+  /* USER CODE BEGIN TIM16_Init 0 */
+
+  /* USER CODE END TIM16_Init 0 */
+
+  /* USER CODE BEGIN TIM16_Init 1 */
+
+  /* USER CODE END TIM16_Init 1 */
+  htim16.Instance = TIM16;
+  htim16.Init.Prescaler = 0;
+  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim16.Init.Period = 65535;
+  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim16.Init.RepetitionCounter = 0;
+  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM16_Init 2 */
+
+  /* USER CODE END TIM16_Init 2 */
+
+}
+
+/**
+  * @brief TIM17 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM17_Init(void)
+{
+
+  /* USER CODE BEGIN TIM17_Init 0 */
+
+  /* USER CODE END TIM17_Init 0 */
+
+  /* USER CODE BEGIN TIM17_Init 1 */
+
+  /* USER CODE END TIM17_Init 1 */
+  htim17.Instance = TIM17;
+  htim17.Init.Prescaler = 0;
+  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim17.Init.Period = 65535;
+  htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim17.Init.RepetitionCounter = 0;
+  htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM17_Init 2 */
+
+  /* USER CODE END TIM17_Init 2 */
 
 }
 
