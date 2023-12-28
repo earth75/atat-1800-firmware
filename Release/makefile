@@ -68,8 +68,8 @@ all:
 main-build: ATAT_1800.elf secondary-outputs
 
 # Tool invocations
-ATAT_1800.elf ATAT_1800.map: $(OBJS) $(USER_OBJS) Z:\CubeIDE\ATAT_1800\STM32F072CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ATAT_1800.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"Z:\CubeIDE\ATAT_1800\STM32F072CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ATAT_1800.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ATAT_1800.elf ATAT_1800.map: $(OBJS) $(USER_OBJS) D:\Users\Alexis\OneDrive\CubeIDE\ATAT_1800\STM32F072CBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ATAT_1800.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"D:\Users\Alexis\OneDrive\CubeIDE\ATAT_1800\STM32F072CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ATAT_1800.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

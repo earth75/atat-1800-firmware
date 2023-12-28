@@ -97,12 +97,14 @@ static void MX_NVIC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+//update key status
 void refreshKeys(void){
 
 }
 
 
-//invscodeit backlight drivers
+//initialize backlight drivers
 void initBL(void){
 
 }
@@ -110,6 +112,22 @@ void initBL(void){
 //refresh backlight levels and update drivers
 void refreshBL(void){
 
+}
+
+
+//send HID report to Host
+void sendReport(void){
+
+	  keyBoardHIDsub.MODIFIER=0x02;  // To press shift key<br>keyBoardHIDsub.KEYCODE1=0x04;  // Press A key
+	  keyBoardHIDsub.KEYCODE2=0x05;  // Press B key
+	  keyBoardHIDsub.KEYCODE3=0x06;  // Press C key
+	  USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+	  HAL_Delay(50); 		       // Press all key for 50 milliseconds
+	  keyBoardHIDsub.MODIFIER=0x00;  // To release shift key
+	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
+	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
+	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+	  HAL_Delay(1000); 	       // Repeat this task on every 1 second
 }
 
 /* USER CODE END 0 */
@@ -152,6 +170,14 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 
+  //select U4
+#define slaveAddress 0x39<<1
+  //activate channel 1
+  uint8_t data = 0x01;
+  uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
+
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -160,18 +186,30 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
+	  for (uint16_t i = 0x31; i<=0x39; i++){
+	/*
+		  //set current to half for all leds
+		  for (uint16_t j = 0x0A; j<0x40; j+=3){
+			  HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+		  }
+	*/
+		  //enable chip FRFSH=0
+		  data = 0x00;
+		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+		  //enable chip FRFSH=0 FLTEN=1 STH=3 LATCH=0
+		  data = 0xBD;
+		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x01, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+		  //activate channel 1 to 4
+		  data = 0x0F;
+		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x05, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+
+	  }
+
+	  HAL_Delay(500);
+
     /* USER CODE BEGIN 3 */
 
-	  keyBoardHIDsub.MODIFIER=0x02;  // To press shift key<br>keyBoardHIDsub.KEYCODE1=0x04;  // Press A key
-	  keyBoardHIDsub.KEYCODE2=0x05;  // Press B key
-	  keyBoardHIDsub.KEYCODE3=0x06;  // Press C key
-	  USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
-	  HAL_Delay(50); 		       // Press all key for 50 milliseconds
-	  keyBoardHIDsub.MODIFIER=0x00;  // To release shift key
-	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
-	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
-	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
-	  HAL_Delay(1000); 	       // Repeat this task on every 1 second
+
   }
   /* USER CODE END 3 */
 }
@@ -254,7 +292,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x0000020B;
+  hi2c1.Init.Timing = 0x40000796;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -472,6 +510,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
+
   }
   /* USER CODE END Error_Handler_Debug */
 }
