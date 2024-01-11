@@ -175,6 +175,7 @@ int main(void)
   //activate channel 1
   uint8_t data = 0x01;
   uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
+  HAL_Delay(500);
 
 
 
@@ -186,28 +187,28 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-	  for (uint16_t i = 0x31; i<=0x39; i++){
-	/*
-		  //set current to half for all leds
-		  for (uint16_t j = 0x0A; j<0x40; j+=3){
-			  HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
-		  }
-	*/
+    /* USER CODE BEGIN 3 */
+	  for (uint16_t i = 0x30; i<=0x39; i++){
+
 		  //enable chip FRFSH=0
 		  data = 0x00;
-		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+		  if(HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100) == HAL_ERROR) continue;
+
+		  //set current to half for all leds
+		  for (uint16_t j = 0x0A; j<0x40; j+=3){
+		    HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+		  }
+
 		  //enable chip FRFSH=0 FLTEN=1 STH=3 LATCH=0
 		  data = 0xBD;
 		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x01, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
-		  //activate channel 1 to 4
-		  data = 0x0F;
+		  //activate channel 1
+		  data = 0x01;
 		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x05, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
 
 	  }
 
 	  HAL_Delay(500);
-
-    /* USER CODE BEGIN 3 */
 
 
   }
@@ -292,7 +293,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x40000796;
+  hi2c1.Init.Timing = 0x0010020A;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
