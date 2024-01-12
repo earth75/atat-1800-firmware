@@ -39,6 +39,12 @@ typedef struct
 	uint8_t KEYCODE6;
 }KeyBoardReport_t;
 
+typedef struct
+{
+	GPIO_TypeDef* Port;
+	uint16_t Pin;
+}GPIO_t;
+
 //  +------+-------+
 //  |          16
 //  +------+-------+
@@ -60,6 +66,40 @@ typedef union{
 /* USER CODE BEGIN PD */
 #define ROWS 6
 #define COLS 19
+
+
+
+const GPIO_t cols[COLS] = {
+		{COL0_GPIO_Port,  COL0_Pin},
+		{COL1_GPIO_Port,  COL1_Pin},
+		{COL2_GPIO_Port,  COL2_Pin},
+		{COL3_GPIO_Port,  COL3_Pin},
+		{COL4_GPIO_Port,  COL4_Pin},
+		{COL5_GPIO_Port,  COL5_Pin},
+		{COL6_GPIO_Port,  COL6_Pin},
+		{COL7_GPIO_Port,  COL7_Pin},
+		{COL8_GPIO_Port,  COL8_Pin},
+		{COL9_GPIO_Port,  COL9_Pin},
+		{COL10_GPIO_Port, COL10_Pin},
+		{COL11_GPIO_Port, COL11_Pin},
+		{COL12_GPIO_Port, COL12_Pin},
+		{COL13_GPIO_Port, COL13_Pin},
+		{COL14_GPIO_Port, COL14_Pin},
+		{COL15_GPIO_Port, COL15_Pin},
+		{COL16_GPIO_Port, COL16_Pin},
+		{COL17_GPIO_Port, COL17_Pin},
+		{COL18_GPIO_Port, COL18_Pin},
+	};
+
+const GPIO_t rows[ROWS] = {
+		{ROW0_GPIO_Port, ROW0_Pin},
+		{ROW1_GPIO_Port, ROW1_Pin},
+		{ROW2_GPIO_Port, ROW2_Pin},
+		{ROW3_GPIO_Port, ROW3_Pin},
+		{ROW4_GPIO_Port, ROW4_Pin},
+		{ROW5_GPIO_Port, ROW5_Pin},
+	};
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -98,20 +138,70 @@ static void MX_NVIC_Init(void);
 /* USER CODE BEGIN 0 */
 
 
-//update key status
-void refreshKeys(void){
-
-}
-
-
 //initialize backlight drivers
 void initBL(void){
+  uint8_t data;
+  uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
+
+  //chip addresses are in the range 0x30 0x39
+  for (uint16_t i = 0x30; i<=0x39; i++){
+
+	  //enable chip FRFSH=0
+	  data = 0x00;
+	  if(HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100) == HAL_ERROR) continue;
+
+	  //set current to half for all leds
+	  for (uint16_t j = 0x0A; j<0x40; j+=3){
+		HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+	  }
+
+	  //enable chip FRFSH=0 FLTEN=1 STH=3 LATCH=0
+	  data = 0xBD;
+	  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x01, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+	  //activate channel 1
+	  data = 0x01;
+	  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x05, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+
+  }
+}
+
+//blink all led1 once
+void blink_BL(int times){
+ uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
+
+ for (int i=0; i< times; i++){
+	  //ON
+	  ledState[0] = 0x0F;
+	  for (uint16_t i = 0x30; i<=0x39; i++){
+		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+	  }
+	  HAL_Delay(150);
+
+	  //OFF
+	  ledState[0] = 0x00;
+	  for (uint16_t i = 0x30; i<=0x39; i++){
+		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+	  }
+	  HAL_Delay(100);
+ }
+ HAL_Delay(200);
 
 }
 
 //refresh backlight levels and update drivers
 void refreshBL(void){
 
+}
+
+
+//update key status
+void refreshKeys(void){
+	for (int row=0; row < ROWS; row++){
+		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_RESET); // set this pin  to open drain
+		HAL_Delay(1); //settle time (might not be needed)
+		for (int col=0; col < COLS; col++) 	Keyboard[row][col].state = HAL_GPIO_ReadPin(cols[col].Port, cols[col].Pin);
+		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_SET); // set it back to hi z
+	}
 }
 
 
@@ -127,7 +217,6 @@ void sendReport(void){
 	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
 	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
 	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
-	  HAL_Delay(1000); 	       // Repeat this task on every 1 second
 }
 
 /* USER CODE END 0 */
@@ -170,12 +259,14 @@ int main(void)
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 
-  //select U4
-#define slaveAddress 0x39<<1
-  //activate channel 1
-  uint8_t data = 0x01;
-  uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
-  HAL_Delay(500);
+  //init all led drivers
+
+
+  HAL_Delay(20);
+  initBL();
+
+
+
 
 
 
@@ -188,27 +279,9 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  for (uint16_t i = 0x30; i<=0x39; i++){
 
-		  //enable chip FRFSH=0
-		  data = 0x00;
-		  if(HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100) == HAL_ERROR) continue;
 
-		  //set current to half for all leds
-		  for (uint16_t j = 0x0A; j<0x40; j+=3){
-		    HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
-		  }
-
-		  //enable chip FRFSH=0 FLTEN=1 STH=3 LATCH=0
-		  data = 0xBD;
-		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x01, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
-		  //activate channel 1
-		  data = 0x01;
-		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x05, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
-
-	  }
-
-	  HAL_Delay(500);
+	  refreshKeys();
 
 
   }
@@ -439,18 +512,18 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, ROW0_Pin|ROW1_Pin|ROW2_Pin|ROW4_Pin
-                          |ROW5_Pin|ROW3_Pin, GPIO_PIN_RESET);
+                          |ROW5_Pin|ROW3_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : COL18_Pin COL17_Pin COL16_Pin */
   GPIO_InitStruct.Pin = COL18_Pin|COL17_Pin|COL16_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : COL15_Pin */
   GPIO_InitStruct.Pin = COL15_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(COL15_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ROW0_Pin ROW1_Pin ROW2_Pin ROW4_Pin
@@ -477,13 +550,13 @@ static void MX_GPIO_Init(void)
                           |COL13_Pin|COL12_Pin|COL11_Pin|COL10_Pin
                           |COL14_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : COL1_Pin COL0_Pin */
   GPIO_InitStruct.Pin = COL1_Pin|COL0_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USB_PWR_Pin */
