@@ -128,6 +128,7 @@ TIM_HandleTypeDef htim17;
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 static KeyBoardReport_t keyBoardHIDsub = {0,0,{0,0,0,0,0,0}};
+volatile uint8_t keyBoardLEDState = 0x0;
 static keystate_t Keyboard[ROWS][COLS] = {};
 /* USER CODE END PV */
 
@@ -238,7 +239,8 @@ int updateReport(int keycode, int pressed){
 
 //update key status
 void refreshKeys(void){
-	int change = 0;
+	int change;
+	change = 0;
 	for (int row=0; row < ROWS; row++){
 		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_RESET); // set this pin to LOW
 		HAL_Delay(1); //settle time
@@ -257,8 +259,7 @@ void refreshKeys(void){
 	//if any key was pressed or released, send the damn thing
 	if(change) {
 		change = USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
-		HAL_Delay(10); //settle time (might not be needed)
-		if(change)blink_BL(change);
+		HAL_Delay(10); //USB rate limiting
 	}
 }
 
@@ -309,22 +310,23 @@ int main(void)
   initBL();
 
 
-
-
-
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint8_t old_state = 0;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-
 	  refreshKeys();
+
+	  if(keyBoardLEDState!=old_state){
+		  blink_BL(keyBoardLEDState);
+		  old_state = keyBoardLEDState;
+	  }
 
 
   }
