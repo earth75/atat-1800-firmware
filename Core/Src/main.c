@@ -23,20 +23,17 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_hid.h"
+#include "keycodes.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define ROLLOVER 6
 typedef struct
 {
 	uint8_t MODIFIER;
 	uint8_t RESERVED;
-	uint8_t KEYCODE1;
-	uint8_t KEYCODE2;
-	uint8_t KEYCODE3;
-	uint8_t KEYCODE4;
-	uint8_t KEYCODE5;
-	uint8_t KEYCODE6;
+	uint8_t KEYCODE[ROLLOVER];
 }KeyBoardReport_t;
 
 typedef struct
@@ -50,16 +47,13 @@ typedef struct
 //  +------+-------+
 //  |
 //  +------+-------+
-typedef union{
-	unsigned int keyState;
-	struct{
-	   // LSB
-	   unsigned int brightness:16;
-	   unsigned int state:8;
-	   // MSB
-	};
+typedef	struct{
+	   unsigned int driverId;
+	   unsigned int LEDnbr;
+	   unsigned int isPressed;
+	   unsigned int hasChanged;
 
-} keystate_t;
+	} keystate_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -67,8 +61,7 @@ typedef union{
 #define ROWS 6
 #define COLS 19
 
-
-
+//GPIO mapping with CubeMX symbols (edit pins in cubeMX)
 const GPIO_t cols[COLS] = {
 		{COL0_GPIO_Port,  COL0_Pin},
 		{COL1_GPIO_Port,  COL1_Pin},
@@ -100,6 +93,23 @@ const GPIO_t rows[ROWS] = {
 		{ROW5_GPIO_Port, ROW5_Pin},
 	};
 
+
+const char Keycode_map[ROWS][COLS] = {
+//COL0				1			2			3			4			5			6			7			8			9			10			11			12			13				14			15					16							17					18
+//ROW 0
+{Key_ESCAPE, 		0, 			Key_F1, 	Key_F2, 	Key_F3, 	Key_F4, 	Key_F5, 	Key_F6, 	Key_F7, 	Key_F8, 	Key_F9, 	Key_F10, 	Key_F11, 	Key_F12, 		Key_DELETE, Key_INSERT, 		0, 							0, 					0},
+//ROW 1
+{Key_GRAVE_ACCENT, 	Key_ONE, 	Key_TWO, 	Key_THREE, 	Key_FOUR, 	Key_FIVE, 	Key_SIX, 	Key_SEVEN, 	Key_EIGHT, 	Key_NINE, 	Key_ZERO, 	Key_MINUS, 	Key_EQUALS, Key_BACKSPACE, 	Key_MACRO, 	Key_KEYPAD_NUMLOCK, Key_KEYPAD_FORWARD_SLASH, 	Key_KEYPAD_ASTERISK, Key_KEYPAD_MINUS},
+//ROW 2
+{Key_TAB, 			Key_Q, 		Key_W, 		Key_E, 		Key_R, 		Key_T, 		Key_Y, 		Key_U, 		Key_I, 		Key_O, 		Key_P, 	Key_L_BRACKET, Key_R_BRACKET, Key_BACKSLASH, Key_MACRO, Key_KEYPAD_SEVEN, Key_KEYPAD_EIGHT, 		Key_KEYPAD_NINE, 	Key_KEYPAD_PLUS},
+//ROW 3
+{Key_CAPS_LOCK, 	Key_A,		Key_S,		Key_D,		Key_F,		Key_G,		Key_H,		Key_J,		Key_K,		Key_L,		Key_SEMICOLON, Key_QUOTE, Key_ENTER, 0, 			0, 			Key_KEYPAD_FOUR, 	Key_KEYPAD_FIVE, 			Key_KEYPAD_SIX, 	0},
+//ROW 4
+{Key_L_SHIFT,		Key_Z,		Key_X,		Key_C,		Key_V,		Key_B,		Key_N,		Key_M,		Key_COMMA,	Key_PERIOD,	Key_FORWARD_SLASH,Key_R_SHIFT, 0, 	0, 			Key_UP_ARROW, 	Key_KEYPAD_ONE, 	Key_KEYPAD_TWO, 			Key_KEYPAD_THREE,	Key_KEYPAD_ENTER},
+//ROW 5
+{Key_L_CTL,			Key_WIN,	Key_L_ALT,	0, 			0, 			Key_SPACEBAR, 0, 		0,			0,			Key_R_ALT,	Key_MACRO,	Key_R_CTL,	0,			Key_L_ARROW,	Key_DOWN_ARROW, Key_R_ARROW,	Key_KEYPAD_ZERO,			Key_KEYPAD_PERIOD,	0}
+};
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -117,9 +127,8 @@ TIM_HandleTypeDef htim17;
 /* USER CODE BEGIN PV */
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
-KeyBoardReport_t keyBoardHIDsub = {0,0,0,0,0,0,0,0};
-
-keystate_t Keyboard[ROWS][COLS];
+static KeyBoardReport_t keyBoardHIDsub = {0,0,{0,0,0,0,0,0}};
+static keystate_t Keyboard[ROWS][COLS] = {};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,7 +145,6 @@ static void MX_NVIC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 
 //initialize backlight drivers
 void initBL(void){
@@ -182,7 +190,7 @@ void blink_BL(int times){
 	  for (uint16_t i = 0x30; i<=0x39; i++){
 		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
 	  }
-	  HAL_Delay(100);
+	  HAL_Delay(150);
  }
  HAL_Delay(200);
 
@@ -193,30 +201,65 @@ void refreshBL(void){
 
 }
 
-
-//update key status
-void refreshKeys(void){
-	for (int row=0; row < ROWS; row++){
-		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_RESET); // set this pin  to open drain
-		HAL_Delay(1); //settle time (might not be needed)
-		for (int col=0; col < COLS; col++) 	Keyboard[row][col].state = HAL_GPIO_ReadPin(cols[col].Port, cols[col].Pin);
-		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_SET); // set it back to hi z
+//send HID report to Host
+//return 0 if OK
+//return 1 if NOK (unknown keycode or more than 6 keys already present)
+//return 2 if WTF
+int updateReport(int keycode, int pressed){
+	uint16_t i = 0;
+	if(keycode&0x80){ //is this a modifier key?
+		if(pressed) keyBoardHIDsub.MODIFIER |= 1<<(keycode&0x0F); //if pressed set the corresponding bit to 1
+		else keyBoardHIDsub.MODIFIER &= ~(1<<(keycode&0x0F)); //if released set the corresponding bit to  0
+		return 0; //this never fails as each modifier key has its own bit
 	}
+	if (pressed){
+		uint16_t free_slot = ROLLOVER;
+		for (i = 0; i<ROLLOVER; i++){
+			if(keyBoardHIDsub.KEYCODE[i] == keycode) return 2;//WTF this key is pressed already bail out
+			if(keyBoardHIDsub.KEYCODE[i] == 0 && free_slot == ROLLOVER) free_slot = i; //yay there is space to add the keycode
+		}
+		if(free_slot >= ROLLOVER) return 1; //more than 6 keys are pressed at the same time. put your other hand back on the mouse (﻿ ͡° ͜ʖ ͡°)
+		keyBoardHIDsub.KEYCODE[free_slot] = keycode; //add the keycode to the lowest free spot
+		return 0; //done
+	}
+
+	for (i = 0; i<ROLLOVER; i++){
+		if(keyBoardHIDsub.KEYCODE[i] == keycode){//we found the key
+			keyBoardHIDsub.KEYCODE[i] = 0; //boom
+			return 0; //done
+		}
+	}
+	if(i>=ROLLOVER) return 2; //WTF you released a key that wasnt pressed
+
+
+	return 3; //get outta here!
 }
 
 
-//send HID report to Host
-void sendReport(void){
+//update key status
+void refreshKeys(void){
+	int change = 0;
+	for (int row=0; row < ROWS; row++){
+		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_RESET); // set this pin to LOW
+		HAL_Delay(1); //settle time
 
-	  keyBoardHIDsub.MODIFIER=0x02;  // To press shift key<br>keyBoardHIDsub.KEYCODE1=0x04;  // Press A key
-	  keyBoardHIDsub.KEYCODE2=0x05;  // Press B key
-	  keyBoardHIDsub.KEYCODE3=0x06;  // Press C key
-	  USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
-	  HAL_Delay(50); 		       // Press all key for 50 milliseconds
-	  keyBoardHIDsub.MODIFIER=0x00;  // To release shift key
-	  keyBoardHIDsub.KEYCODE2=0x00;  // Release B key
-	  keyBoardHIDsub.KEYCODE3=0x00;  // Release C key
-	  USBD_HID_SendReport(&hUsbDeviceFS,(uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+		for (int col=0; col < COLS; col++){
+			int k = HAL_GPIO_ReadPin(cols[col].Port, cols[col].Pin);
+			if (Keyboard[row][col].isPressed == k){
+				Keyboard[row][col].hasChanged = 1;
+				Keyboard[row][col].isPressed = !k;
+				updateReport(Keycode_map[row][col], Keyboard[row][col].isPressed);
+				change = 1;
+			}
+		}
+		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_SET); // set it back to hi z
+	}
+	//if any key was pressed or released, send the damn thing
+	if(change) {
+		change = USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+		HAL_Delay(10); //settle time (might not be needed)
+		if(change)blink_BL(change);
+	}
 }
 
 /* USER CODE END 0 */
