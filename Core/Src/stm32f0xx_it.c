@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f0xx_it.h"
+#include "stm32f0xx_ll_tim.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -57,10 +58,9 @@
 /* External variables --------------------------------------------------------*/
 extern PCD_HandleTypeDef hpcd_USB_FS;
 extern TIM_HandleTypeDef htim14;
-extern TIM_HandleTypeDef htim16;
-extern TIM_HandleTypeDef htim17;
 /* USER CODE BEGIN EV */
-
+extern volatile keystate_t Keyboard[ROWS][COLS];
+extern volatile int KEY_CHANGE;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -149,40 +149,28 @@ void SysTick_Handler(void)
 void TIM14_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM14_IRQn 0 */
+	static unsigned int current_row = 0;
+
+	for (int col=0; col < COLS; col++){
+		int k = HAL_GPIO_ReadPin(cols[col].Port, cols[col].Pin);
+		if (Keyboard[current_row][col].isPressed == k){
+			Keyboard[current_row][col].hasChanged = 1;
+			Keyboard[current_row][col].isPressed = !k;
+			updateReport(Keycode_map[current_row][col], Keyboard[current_row][col].isPressed);
+			KEY_CHANGE++;
+		}
+	}
+
+	HAL_GPIO_WritePin(rows[current_row].Port, rows[current_row].Pin, GPIO_PIN_SET); // were done, set the pin back to high
+	if(++current_row == ROWS) current_row = 0; //advance to next row with rollover
+	HAL_GPIO_WritePin(rows[current_row].Port, rows[current_row].Pin, GPIO_PIN_RESET); // set the next pin to LOW (will be evaluated on the next iteration with plenty of settle time)
+
 
   /* USER CODE END TIM14_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim14);
+
   /* USER CODE BEGIN TIM14_IRQn 1 */
-	//LL_TIM_ClearFlag_UPDATE(&htim14)
+	LL_TIM_ClearFlag_UPDATE(htim14.Instance);
   /* USER CODE END TIM14_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM16 global interrupt.
-  */
-void TIM16_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM16_IRQn 0 */
-
-  /* USER CODE END TIM16_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim16);
-  /* USER CODE BEGIN TIM16_IRQn 1 */
-
-  /* USER CODE END TIM16_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM17 global interrupt.
-  */
-void TIM17_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM17_IRQn 0 */
-
-  /* USER CODE END TIM17_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim17);
-  /* USER CODE BEGIN TIM17_IRQn 1 */
-
-  /* USER CODE END TIM17_IRQn 1 */
 }
 
 /**

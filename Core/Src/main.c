@@ -23,7 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_hid.h"
-#include "keycodes.h"
+#include "mpq3326.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,32 +36,10 @@ typedef struct
 	uint8_t KEYCODE[ROLLOVER];
 }KeyBoardReport_t;
 
-typedef struct
-{
-	GPIO_TypeDef* Port;
-	uint16_t Pin;
-}GPIO_t;
-
-//  +------+-------+
-//  |          16
-//  +------+-------+
-//  |
-//  +------+-------+
-typedef	struct{
-	   unsigned int driverId;
-	   unsigned int LEDnbr;
-	   unsigned int isPressed;
-	   unsigned int hasChanged;
-
-	} keystate_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ROWS 6
-#define COLS 19
-
-//GPIO mapping with CubeMX symbols (edit pins in cubeMX)
 const GPIO_t cols[COLS] = {
 		{COL0_GPIO_Port,  COL0_Pin},
 		{COL1_GPIO_Port,  COL1_Pin},
@@ -93,6 +71,22 @@ const GPIO_t rows[ROWS] = {
 		{ROW5_GPIO_Port, ROW5_Pin},
 	};
 
+const backlight_t Backlight_map[ROWS][COLS] = {
+//COL0				1			2			3			4			5			6			7			8			9			10			11			12			13				14			15					16							17					18
+//ROW 0
+{{1, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+//ROW 1
+{{0, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+//ROW 2
+{{0, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+//ROW 3
+{{0, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+//ROW 4
+{{0, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+//ROW 5
+{{0, 6},			{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},		{0,1},			{0,1},		{0,1},				{0,1},						{0,1},				{0,1}		},
+
+};
 
 const char Keycode_map[ROWS][COLS] = {
 //COL0				1			2			3			4			5			6			7			8			9			10			11			12			13				14			15					16							17					18
@@ -121,15 +115,16 @@ const char Keycode_map[ROWS][COLS] = {
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim14;
-TIM_HandleTypeDef htim16;
-TIM_HandleTypeDef htim17;
 
 /* USER CODE BEGIN PV */
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
 static KeyBoardReport_t keyBoardHIDsub = {0,0,{0,0,0,0,0,0}};
 volatile uint8_t keyBoardLEDState = 0x0;
-static keystate_t Keyboard[ROWS][COLS] = {};
+volatile keystate_t Keyboard[ROWS][COLS] = {};
+static mpq3326_t ledDriver[10];
+int driver_present[10]; //some drivers are not used
+volatile int KEY_CHANGE = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,9 +132,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM14_Init(void);
-static void MX_TIM16_Init(void);
-static void MX_TIM17_Init(void);
-static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -149,60 +141,73 @@ static void MX_NVIC_Init(void);
 
 //initialize backlight drivers
 void initBL(void){
-  uint8_t data;
-  uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
+  //Parse the keyboard descriptor to enable the necessary channels on the drivers
+
 
   //chip addresses are in the range 0x30 0x39
-  for (uint16_t i = 0x30; i<=0x39; i++){
+  for (uint16_t i = 0; i<10; i++){
 
-	  //enable chip FRFSH=0
-	  data = 0x00;
-	  if(HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x02, I2C_MEMADD_SIZE_8BIT, &data, 1, 100) == HAL_ERROR) continue;
+	//set FRFSH=0 and see if the chip ACKs to test if present
+	ledDriver[i].refresh = 0x0000;
+	if(HAL_I2C_Mem_Write (&hi2c1, (0x30 + i) << 1, 0x02, I2C_MEMADD_SIZE_8BIT, (uint8_t *)&(ledDriver[i].refresh), 1, 100) == HAL_ERROR) {
+		driver_present[i] = 0; //this chip does not exist
+		continue; //try the next one
+	}
 
-	  //set current to half for all leds
-	  for (uint16_t j = 0x0A; j<0x40; j+=3){
-		HAL_I2C_Mem_Write (&hi2c1, i << 1, j, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
-	  }
+	driver_present[i] = 1; //communication with the driver is OK
 
-	  //enable chip FRFSH=0 FLTEN=1 STH=3 LATCH=0
-	  data = 0xBD;
-	  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x01, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
-	  //activate channel 1
-	  data = 0x01;
-	  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x05, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+	//set f_pwm to 250Hz (not used anyway)
+	ledDriver[i].fpwm = 0x01;
+
+	//enable chip FLTEN=1 STH=3 LATCH=0
+	ledDriver[i].control = 0xBD;
+
+	//set current to half for all leds and duty cycle to 100%
+	for (uint16_t j = 0; j<16; j++){
+		ledDriver[i].channels[j].current  = 0x0F;
+		ledDriver[i].channels[j].duty_msb = 0xFF;
+		ledDriver[i].channels[j].duty_lsb = 0xFF;
+	}
+
+	 //apply all the settings
+	for(int i = 0; i < 10; i++){
+		HAL_I2C_Mem_Write (&hi2c1, (0x30 + i) << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, (uint8_t *)(&ledDriver[i]), sizeof(mpq3326_t), 100);
+	}
 
   }
 }
 
+//refresh backlight levels and update drivers
+void refreshBL(void){
+	for(int i = 0; i < 10; i++){
+		if(driver_present[i]) HAL_I2C_Mem_Write (&hi2c1, (0x30 + i) << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, (uint8_t *)(&(ledDriver[i].channels)), 16*sizeof(mpq3326_channel_t), 100);
+	}
+}
+
 //blink all led1 once
 void blink_BL(int times){
- uint8_t ledState[3] = {0x0F, 0xFF, 0xFF};
 
- for (int i=0; i< times; i++){
+ for (int j=0; j<times; j++){
 	  //ON
-	  ledState[0] = 0x0F;
-	  for (uint16_t i = 0x30; i<=0x39; i++){
-		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+	  for (uint16_t i = 0; i<10; i++){
+		  ledDriver[i].channels[1].current = 0x0F; //led 1 of each driver ON
 	  }
+	  refreshBL();
 	  HAL_Delay(150);
 
 	  //OFF
-	  ledState[0] = 0x00;
-	  for (uint16_t i = 0x30; i<=0x39; i++){
-		  HAL_I2C_Mem_Write (&hi2c1, i << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, ledState, 3, 100);
+	  for (uint16_t i = 0; i<10; i++){
+		  ledDriver[i].channels[1].current = 0x00; //led 1 of each driver OFF
 	  }
+	  refreshBL();
 	  HAL_Delay(150);
  }
  HAL_Delay(200);
 
 }
 
-//refresh backlight levels and update drivers
-void refreshBL(void){
 
-}
-
-//send HID report to Host
+//update HID report content
 //return 0 if OK
 //return 1 if NOK (unknown keycode or more than 6 keys already present)
 //return 2 if WTF
@@ -237,10 +242,9 @@ int updateReport(int keycode, int pressed){
 }
 
 
-//update key status
+//update key status, deprecated
+//scans all keys and sends a report if there was a change
 void refreshKeys(void){
-	int change;
-	change = 0;
 	for (int row=0; row < ROWS; row++){
 		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_RESET); // set this pin to LOW
 		HAL_Delay(1); //settle time
@@ -251,14 +255,14 @@ void refreshKeys(void){
 				Keyboard[row][col].hasChanged = 1;
 				Keyboard[row][col].isPressed = !k;
 				updateReport(Keycode_map[row][col], Keyboard[row][col].isPressed);
-				change = 1;
+				KEY_CHANGE = 1;
 			}
 		}
 		HAL_GPIO_WritePin(rows[row].Port, rows[row].Pin, GPIO_PIN_SET); // set it back to hi z
 	}
 	//if any key was pressed or released, send the damn thing
-	if(change) {
-		change = USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
+	if(KEY_CHANGE) {
+		KEY_CHANGE = USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
 		HAL_Delay(10); //USB rate limiting
 	}
 }
@@ -296,18 +300,13 @@ int main(void)
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   MX_TIM14_Init();
-  MX_TIM16_Init();
-  MX_TIM17_Init();
-
-  /* Initialize interrupts */
-  MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
 
-  //init all led drivers
-
-
   HAL_Delay(20);
+  //init all led drivers
   initBL();
+  //start keyboard refresh timer
+  HAL_TIM_Base_Start_IT(&htim14);
 
 
   /* USER CODE END 2 */
@@ -321,12 +320,16 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  refreshKeys();
+	if(keyBoardLEDState!=old_state){
+		blink_BL(keyBoardLEDState);
+		old_state = keyBoardLEDState;
+	}
 
-	  if(keyBoardLEDState!=old_state){
-		  blink_BL(keyBoardLEDState);
-		  old_state = keyBoardLEDState;
-	  }
+
+	if(KEY_CHANGE) {
+		while(USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub))) HAL_Delay(10); //USB rate limiting
+		KEY_CHANGE--;
+	}
 
 
   }
@@ -376,23 +379,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief NVIC Configuration.
-  * @retval None
-  */
-static void MX_NVIC_Init(void)
-{
-  /* TIM14_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(TIM14_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(TIM14_IRQn);
-  /* TIM16_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(TIM16_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(TIM16_IRQn);
-  /* TIM17_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(TIM17_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(TIM17_IRQn);
 }
 
 /**
@@ -459,9 +445,9 @@ static void MX_TIM14_Init(void)
 
   /* USER CODE END TIM14_Init 1 */
   htim14.Instance = TIM14;
-  htim14.Init.Prescaler = 0;
+  htim14.Init.Prescaler = 48;
   htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim14.Init.Period = 65535;
+  htim14.Init.Period = 1000;
   htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
@@ -471,70 +457,6 @@ static void MX_TIM14_Init(void)
   /* USER CODE BEGIN TIM14_Init 2 */
 
   /* USER CODE END TIM14_Init 2 */
-
-}
-
-/**
-  * @brief TIM16 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM16_Init(void)
-{
-
-  /* USER CODE BEGIN TIM16_Init 0 */
-
-  /* USER CODE END TIM16_Init 0 */
-
-  /* USER CODE BEGIN TIM16_Init 1 */
-
-  /* USER CODE END TIM16_Init 1 */
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 0;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 65535;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM16_Init 2 */
-
-  /* USER CODE END TIM16_Init 2 */
-
-}
-
-/**
-  * @brief TIM17 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM17_Init(void)
-{
-
-  /* USER CODE BEGIN TIM17_Init 0 */
-
-  /* USER CODE END TIM17_Init 0 */
-
-  /* USER CODE BEGIN TIM17_Init 1 */
-
-  /* USER CODE END TIM17_Init 1 */
-  htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 0;
-  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 65535;
-  htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim17.Init.RepetitionCounter = 0;
-  htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim17) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM17_Init 2 */
-
-  /* USER CODE END TIM17_Init 2 */
 
 }
 

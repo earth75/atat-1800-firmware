@@ -29,18 +29,42 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx_hal.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "keycodes.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef struct
+{
+	GPIO_TypeDef* Port;
+	uint16_t Pin;
+}GPIO_t;
 
+typedef	struct{
+	   unsigned int DriverID;
+	   unsigned int ChannelNbr;
+} backlight_t;
+
+typedef	struct{
+	   unsigned int isPressed;
+	   unsigned int hasChanged;
+	   unsigned int value;
+} keystate_t;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+#define ROWS 6
+#define COLS 19
+extern const GPIO_t rows[ROWS];
+extern const GPIO_t cols[COLS];
+extern const backlight_t Backlight_map[ROWS][COLS];
+extern const char Keycode_map[ROWS][COLS];
+
 
 /* USER CODE END EC */
 
@@ -53,7 +77,7 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+int updateReport(int keycode, int pressed);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
