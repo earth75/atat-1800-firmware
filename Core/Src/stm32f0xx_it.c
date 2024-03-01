@@ -145,6 +145,8 @@ void SysTick_Handler(void)
 
 /**
   * @brief This function handles TIM14 global interrupt.
+  * this function refreshes the state of one line of keys and select the next
+  * this is meant to be called at 1k+Hz or more
   */
 void TIM14_IRQHandler(void)
 {

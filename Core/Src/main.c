@@ -162,16 +162,19 @@ void initBL(void){
 	//enable chip FLTEN=1 STH=3 LATCH=0
 	ledDriver[i].control = 0xBD;
 
+	//TODO dynamic enable
+	ledDriver[i].enable = 0xFFFF;
+
 	//set current to half for all leds and duty cycle to 100%
 	for (uint16_t j = 0; j<16; j++){
-		ledDriver[i].channels[j].current  = 0x0F;
+		ledDriver[i].channels[j].current  = 0x05;
 		ledDriver[i].channels[j].duty_msb = 0xFF;
 		ledDriver[i].channels[j].duty_lsb = 0xFF;
 	}
 
 	 //apply all the settings
 	for(int i = 0; i < 10; i++){
-		HAL_I2C_Mem_Write (&hi2c1, (0x30 + i) << 1, 0x0A, I2C_MEMADD_SIZE_8BIT, (uint8_t *)(&ledDriver[i]), sizeof(mpq3326_t), 100);
+		HAL_I2C_Mem_Write (&hi2c1, (0x30 + i) << 1, 0x00, I2C_MEMADD_SIZE_8BIT, (uint8_t *)(&ledDriver[i]), sizeof(mpq3326_t), 100);
 	}
 
   }
@@ -321,7 +324,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	if(keyBoardLEDState!=old_state){
-		blink_BL(keyBoardLEDState);
+		//blink_BL(keyBoardLEDState);
 		old_state = keyBoardLEDState;
 	}
 
