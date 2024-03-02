@@ -181,7 +181,9 @@ void TIM14_IRQHandler(void)
 		if (Keyboard[current_row][col].isPressed == k){
 			Keyboard[current_row][col].hasChanged = 1;
 			Keyboard[current_row][col].isPressed = !k;
-			if(updateReport(Keycode_map[current_row][col], Keyboard[current_row][col].isPressed) == 0) KEY_CHANGE++;
+			if(Keycode_map[current_row][col] != 0){
+				if(updateReport(Keycode_map[current_row][col], Keyboard[current_row][col].isPressed) == 0) KEY_CHANGE++;
+			}
 		}
 	}
 
