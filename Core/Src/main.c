@@ -186,7 +186,7 @@ void initBL(void){
 
 	//set current to half for all leds and duty cycle to 100%
 	for (uint16_t j = 0; j<16; j++){
-		ledDriver[i].channels[j].current  = 0x3F;
+		ledDriver[i].channels[j].current  = 0x01;
 		ledDriver[i].channels[j].duty_msb = 0xFF;
 		ledDriver[i].channels[j].duty_lsb = 0xFF;
 	}
@@ -210,7 +210,7 @@ void updateBL(){
 
 	for (int row=0; row < ROWS; row++){
 		for (int col=0; col < COLS; col++){
-			if(Keyboard[row][col].isPressed && Keyboard[row][col].hasChanged) Keyboard[row][col].value += 0x3F;
+			if(Keyboard[row][col].isPressed && Keyboard[row][col].hasChanged) Keyboard[row][col].value += 0x20;
 			else if (Keyboard[row][col].value >0) Keyboard[row][col].value--;
 			ledDriver[Backlight_map[row][col].DriverID].channels[Backlight_map[row][col].ChannelNbr].current = ((Keyboard[row][col].value>>2) + 1);
 		}
