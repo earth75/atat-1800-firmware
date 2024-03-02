@@ -71,6 +71,15 @@ const GPIO_t rows[ROWS] = {
 		{ROW5_GPIO_Port, ROW5_Pin},
 	};
 
+//mapping of the indicator leds on the driver
+const backlight_t Indicator_map[4] = {
+		{7, 3}, //Numlock address
+		{7, 0}, //CapsLock adress
+		{7, 1}, //ScrLock address
+		{7, 2}  //CapsLock adress
+};
+
+
 const backlight_t Backlight_map[ROWS][COLS] = {
 //COL0				1			2			3			4			5			6			7			8			9			10			11			12			13				14			15					16							17					18
 //ROW 0
@@ -91,17 +100,17 @@ const backlight_t Backlight_map[ROWS][COLS] = {
 const char Keycode_map[ROWS][COLS] = {
 //COL0				1			2			3			4			5			6			7			8			9			10			11			12			13				14			15					16							17					18
 //ROW 0
-{Key_ESCAPE, 		0, 			Key_F1, 	Key_F2, 	Key_F3, 	Key_F4, 	Key_F5, 	Key_F6, 	Key_F7, 	Key_F8, 	Key_F9, 	Key_F10, 	Key_F11, 	Key_F12, 		Key_DELETE, Key_INSERT, 		0, 							0, 					0},
+{Key_ESCAPE, 		0, 			Key_F1, 	Key_F2, 	Key_F3, 	Key_F4, 	Key_F5, 	Key_F6, 	Key_F7, 	Key_F8, 	Key_F9, 	Key_F10, 	Key_F11, 	Key_F12, 		Key_HOME, 	Key_MACRO, 			Key_MACRO, 					Key_MACRO, 			Key_MACRO},
 //ROW 1
-{Key_GRAVE_ACCENT, 	Key_ONE, 	Key_TWO, 	Key_THREE, 	Key_FOUR, 	Key_FIVE, 	Key_SIX, 	Key_SEVEN, 	Key_EIGHT, 	Key_NINE, 	Key_ZERO, 	Key_MINUS, 	Key_EQUALS, Key_BACKSPACE, 	Key_MACRO, 	Key_KEYPAD_NUMLOCK, Key_KEYPAD_FORWARD_SLASH, 	Key_KEYPAD_ASTERISK, Key_KEYPAD_MINUS},
+{Key_GRAVE_ACCENT, 	Key_ONE, 	Key_TWO, 	Key_THREE, 	Key_FOUR, 	Key_FIVE, 	Key_SIX, 	Key_SEVEN, 	Key_EIGHT, 	Key_NINE, 	Key_ZERO, 	Key_MINUS, 	Key_EQUALS, Key_BACKSPACE, 	Key_INSERT, Key_KEYPAD_NUMLOCK, Key_KEYPAD_FORWARD_SLASH, 	Key_KEYPAD_ASTERISK, Key_KEYPAD_MINUS},
 //ROW 2
-{Key_TAB, 			Key_Q, 		Key_W, 		Key_E, 		Key_R, 		Key_T, 		Key_Y, 		Key_U, 		Key_I, 		Key_O, 		Key_P, 	Key_L_BRACKET, Key_R_BRACKET, Key_BACKSLASH, Key_MACRO, Key_KEYPAD_SEVEN, Key_KEYPAD_EIGHT, 		Key_KEYPAD_NINE, 	Key_KEYPAD_PLUS},
+{Key_TAB, 			Key_Q, 		Key_W, 		Key_E, 		Key_R, 		Key_T, 		Key_Y, 		Key_U, 		Key_I, 		Key_O, 		Key_P, 	Key_L_BRACKET, Key_R_BRACKET, Key_BACKSLASH, Key_DELETE, Key_KEYPAD_SEVEN, Key_KEYPAD_EIGHT, 		Key_KEYPAD_NINE, 	Key_KEYPAD_PLUS},
 //ROW 3
 {Key_CAPS_LOCK, 	Key_A,		Key_S,		Key_D,		Key_F,		Key_G,		Key_H,		Key_J,		Key_K,		Key_L,		Key_SEMICOLON, Key_QUOTE, Key_ENTER, 0, 			0, 			Key_KEYPAD_FOUR, 	Key_KEYPAD_FIVE, 			Key_KEYPAD_SIX, 	0},
 //ROW 4
-{Key_L_SHIFT,		Key_Z,		Key_X,		Key_C,		Key_V,		Key_B,		Key_N,		Key_M,		Key_COMMA,	Key_PERIOD,	Key_FORWARD_SLASH,Key_R_SHIFT, 0, 	0, 			Key_UP_ARROW, 	Key_KEYPAD_ONE, 	Key_KEYPAD_TWO, 			Key_KEYPAD_THREE,	Key_KEYPAD_ENTER},
+{Key_L_SHIFT,		Key_Z,		Key_X,		Key_C,		Key_V,		Key_B,		Key_N,		Key_M,		Key_COMMA,	Key_PERIOD,	Key_FOW_SLASH,Key_R_SHIFT, 0, 		0, 				Key_UP_ARROW, 	Key_KEYPAD_ONE, 	Key_KEYPAD_TWO, 			Key_KEYPAD_THREE,	Key_KEYPAD_ENTER},
 //ROW 5
-{Key_L_CTL,			Key_WIN,	Key_L_ALT,	0, 			0, 			Key_SPACEBAR, 0, 		0,			0,			Key_R_ALT,	Key_MACRO,	Key_R_CTL,	0,			Key_L_ARROW,	Key_DOWN_ARROW, Key_R_ARROW,	Key_KEYPAD_ZERO,			Key_KEYPAD_PERIOD,	0}
+{Key_L_CTL,			Key_POWER,	Key_L_ALT,	0, 			0, 			Key_SPACEBAR, 0, 		0,			0,			Key_R_ALT,	Key_WIN,	Key_R_CTL,	0,			Key_L_ARROW,	Key_DOWN_ARROW, Key_R_ARROW,	Key_KEYPAD_ZERO,			Key_KEYPAD_PERIOD,	0}
 };
 
 /* USER CODE END PD */
@@ -119,13 +128,21 @@ TIM_HandleTypeDef htim14;
 
 /* USER CODE BEGIN PV */
 
+//USB HID frame storage
 extern USBD_HandleTypeDef hUsbDeviceFS;
 static KeyBoardReport_t keyBoardHIDsub = {0,0,{0,0,0,0,0,0}};
-volatile uint8_t keyBoardLEDState = 0x0;
+
+//keyboard state storage
 volatile keystate_t Keyboard[ROWS][COLS] = {};
 static mpq3326_t ledDriver[10];
 int driver_present[10]; //some drivers are not used
-volatile int KEY_CHANGE = 0;
+
+//indicator state storage
+volatile uint8_t keyBoardLEDState = 0x0;
+static uint8_t current_indicators = 0;
+
+//key change flag
+volatile unsigned int KEY_CHANGE = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -169,7 +186,7 @@ void initBL(void){
 
 	//set current to half for all leds and duty cycle to 100%
 	for (uint16_t j = 0; j<16; j++){
-		ledDriver[i].channels[j].current  = 0x02;
+		ledDriver[i].channels[j].current  = 0x3F;
 		ledDriver[i].channels[j].duty_msb = 0xFF;
 		ledDriver[i].channels[j].duty_lsb = 0xFF;
 	}
@@ -189,7 +206,29 @@ void refreshBL(void){
 	}
 }
 
+void updateBL(){
+
+	for (int row=0; row < ROWS; row++){
+		for (int col=0; col < COLS; col++){
+			if(Keyboard[row][col].isPressed && Keyboard[row][col].hasChanged) Keyboard[row][col].value += 0x3F;
+			else if (Keyboard[row][col].value >0) Keyboard[row][col].value--;
+			ledDriver[Backlight_map[row][col].DriverID].channels[Backlight_map[row][col].ChannelNbr].current = ((Keyboard[row][col].value>>2) + 1);
+		}
+	}
+}
+
+void updateIndicators(){
+	if(keyBoardLEDState!=current_indicators){
+		current_indicators = keyBoardLEDState;
+		//set led current according to the indicator BIT
+		for (int i=0; i<4; i++){
+			ledDriver[Indicator_map[i].DriverID].channels[Indicator_map[i].ChannelNbr].current  = (current_indicators & (1<<i)) ? 0x01 : 0x00;
+		}
+	}
+}
+
 //blink all led1 once
+//for debug only
 void blink_BL(int times){
 
  for (int j=0; j<times; j++){
@@ -218,11 +257,15 @@ void blink_BL(int times){
 //return 2 if WTF
 int updateReport(int keycode, int pressed){
 	uint16_t i = 0;
-	if(keycode&0x80){ //is this a modifier key?
+
+	//is this a modifier key?
+	if(keycode&0x80){
 		if(pressed) keyBoardHIDsub.MODIFIER |= 1<<(keycode&0x0F); //if pressed set the corresponding bit to 1
 		else keyBoardHIDsub.MODIFIER &= ~(1<<(keycode&0x0F)); //if released set the corresponding bit to  0
 		return 0; //this never fails as each modifier key has its own bit
 	}
+
+	//if we are here this is a normal key
 	if (pressed){
 		uint16_t free_slot = ROLLOVER;
 		for (i = 0; i<ROLLOVER; i++){
@@ -233,21 +276,21 @@ int updateReport(int keycode, int pressed){
 		keyBoardHIDsub.KEYCODE[free_slot] = keycode; //add the keycode to the lowest free spot
 		return 0; //done
 	}
-
-	for (i = 0; i<ROLLOVER; i++){
-		if(keyBoardHIDsub.KEYCODE[i] == keycode){//we found the key
-			keyBoardHIDsub.KEYCODE[i] = 0; //boom
-			return 0; //done
+	else{
+		for (i = 0; i<ROLLOVER; i++){
+			if(keyBoardHIDsub.KEYCODE[i] == keycode){//we found the key
+				keyBoardHIDsub.KEYCODE[i] = 0; //boom
+				return 0; //done
+			}
 		}
+		return 2; //WTF you released a key that wasnt pressed! get outta here !
 	}
-	if(i>=ROLLOVER) return 2; //WTF you released a key that wasnt pressed
 
 
-	return 3; //get outta here!
 }
 
 
-//update key status, deprecated
+//update key status, deprecated (scan is now done on timer interrupt)
 //scans all keys and sends a report if there was a change
 void refreshKeys(void){
 	for (int row=0; row < ROWS; row++){
@@ -314,30 +357,25 @@ int main(void)
   //start keyboard refresh timer
   HAL_TIM_Base_Start_IT(&htim14);
 
+  //start backlight and macro refresh timer
+  HAL_TIM_Base_Start_IT(&htim7);
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t old_state = 0;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	if(keyBoardLEDState!=old_state){
-		//blink_BL(keyBoardLEDState);
-		old_state = keyBoardLEDState;
-	}
-
-
+	//this while loop can be preempted by either the scan timer interrupt or macro/backlight interrupt
+	//however, the USB PCD routine triggered by USBD_HID_SendReport is highest priority, so it wont be interrupted
 	if(KEY_CHANGE) {
 		while(USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub))) HAL_Delay(10); //USB rate limiting
 		KEY_CHANGE--;
 	}
-
-
   }
   /* USER CODE END 3 */
 }

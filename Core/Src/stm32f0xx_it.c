@@ -61,7 +61,7 @@ extern TIM_HandleTypeDef htim7;
 extern TIM_HandleTypeDef htim14;
 /* USER CODE BEGIN EV */
 extern volatile keystate_t Keyboard[ROWS][COLS];
-extern volatile int KEY_CHANGE;
+extern volatile unsigned int KEY_CHANGE;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -151,10 +151,20 @@ void TIM7_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM7_IRQn 0 */
 
+	//run macro
+	//TODO macro callbacks
+
+
+	//run backlight animations
+	updateBL();
+	//update indicator LEDS
+	updateIndicators();
+	//send new values to led drivers
+	refreshBL();
   /* USER CODE END TIM7_IRQn 0 */
 
   /* USER CODE BEGIN TIM7_IRQn 1 */
-
+	LL_TIM_ClearFlag_UPDATE(htim7.Instance);
   /* USER CODE END TIM7_IRQn 1 */
 }
 
@@ -171,8 +181,7 @@ void TIM14_IRQHandler(void)
 		if (Keyboard[current_row][col].isPressed == k){
 			Keyboard[current_row][col].hasChanged = 1;
 			Keyboard[current_row][col].isPressed = !k;
-			updateReport(Keycode_map[current_row][col], Keyboard[current_row][col].isPressed);
-			KEY_CHANGE++;
+			if(updateReport(Keycode_map[current_row][col], Keyboard[current_row][col].isPressed) == 0) KEY_CHANGE++;
 		}
 	}
 

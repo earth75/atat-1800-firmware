@@ -77,7 +77,7 @@ different variations of a keyboard.
 #define Key_GRAVE_ACCENT	0x35 // :literal:`\`` and ``~``
 #define Key_COMMA			0x36 // ``,`` and ``<``
 #define Key_PERIOD			0x37 // ``.`` and ``>``
-#define Key_FORWARD_SLASH	0x38 // ``/`` and ``?``
+#define Key_FOW_SLASH	0x38 // ``/`` and ``?``
 
 #define Key_CAPS_LOCK		0x39 // Caps Lock
 

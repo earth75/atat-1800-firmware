@@ -77,6 +77,9 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 int updateReport(int keycode, int pressed);
+void updateBL(void);
+void updateIndicators(void);
+void refreshBL(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
