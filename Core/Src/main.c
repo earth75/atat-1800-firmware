@@ -110,7 +110,7 @@ const char Keycode_map[ROWS][COLS] = {
 //ROW 4
 {Key_L_SHIFT,		Key_Z,		Key_X,		Key_C,		Key_V,		Key_B,		Key_N,		Key_M,		Key_COMMA,	Key_PERIOD,	Key_FOW_SLASH,Key_R_SHIFT, 0, 		0, 				Key_UP_ARROW, 	Key_KEYPAD_ONE, 	Key_KEYPAD_TWO, 			Key_KEYPAD_THREE,	Key_KEYPAD_ENTER},
 //ROW 5
-{Key_L_CTL,			Key_POWER,	Key_L_ALT,	0, 			0, 			Key_SPACEBAR, 0, 		0,			0,			Key_R_ALT,	Key_WIN,	Key_R_CTL,	0,			Key_L_ARROW,	Key_DOWN_ARROW, Key_R_ARROW,	Key_KEYPAD_ZERO,			Key_KEYPAD_PERIOD,	0}
+{Key_L_CTL,			Key_L_WIN,	Key_L_ALT,	0, 			0, 			Key_SPACEBAR, 0, 		0,			0,			Key_R_ALT,	Key_APP,	Key_R_CTL,	0,			Key_L_ARROW,	Key_DOWN_ARROW, Key_R_ARROW,	Key_KEYPAD_ZERO,			Key_KEYPAD_PERIOD,	0}
 };
 
 /* USER CODE END PD */
@@ -210,9 +210,9 @@ void updateBL(){
 
 	for (int row=0; row < ROWS; row++){
 		for (int col=0; col < COLS; col++){
-			if(Keyboard[row][col].isPressed && Keyboard[row][col].hasChanged) Keyboard[row][col].value += 0x20;
+			if(Keyboard[row][col].isPressed) Keyboard[row][col].value = (Keyboard[row][col].value + 5)  | 0x20;
 			else if (Keyboard[row][col].value >0) Keyboard[row][col].value--;
-			ledDriver[Backlight_map[row][col].DriverID].channels[Backlight_map[row][col].ChannelNbr].current = ((Keyboard[row][col].value>>2) + 1);
+			ledDriver[Backlight_map[row][col].DriverID].channels[Backlight_map[row][col].ChannelNbr].current = ((Keyboard[row][col].value>>2) + 2);
 		}
 	}
 }

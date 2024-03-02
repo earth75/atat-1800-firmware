@@ -129,7 +129,7 @@ different variations of a keyboard.
 #define Key_KEYPAD_PERIOD			0x63 // Keypad ``.`` and Del
 #define Key_KEYPAD_BACKSLASH		0x64 // Keypad ``\\`` and ``|`` (Non-US)
 
-#define Key_WIN				0x65 // Application: also known as the Menu key (Windows Key)
+#define Key_APP				0x65 // Application: also known as the Menu key (Windows Key)
 #define Key_POWER			0x66 // Power (Mac)
 #define Key_KEYPAD_EQUALS	0x67 // Keypad ``=`` (Mac)
 
@@ -155,12 +155,6 @@ different variations of a keyboard.
 #define Key_R_SHIFT		0xE5 // Shift modifier right of the spacebar
 #define Key_R_ALT		0xE6 // Alt modifier right of the spacebar
 #define Key_R_WIN		0xE7 // GUI modifier right of the spacebar
-
-
-#define LED_NUM_LOCK    0x01 // LED Usage ID for Num Lock
-#define LED_CAPS_LOCK   0x02 // LED Usage ID for Caps Lock
-#define LED_SCROLL_LOCK 0x04 // LED Usage ID for Scroll Lock
-#define LED_COMPOSE     0x08 // LED Usage ID for Compose
 
 
 //optimized modifier bit calculator

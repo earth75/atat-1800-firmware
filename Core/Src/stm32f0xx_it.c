@@ -161,6 +161,11 @@ void TIM7_IRQHandler(void)
 	updateIndicators();
 	//send new values to led drivers
 	refreshBL();
+	//reset key change markers
+	for (int row=0; row < ROWS; row++){
+	for (int col=0; col < COLS; col++){
+		Keyboard[row][col].hasChanged = 0;
+	}}
   /* USER CODE END TIM7_IRQn 0 */
 
   /* USER CODE BEGIN TIM7_IRQn 1 */
