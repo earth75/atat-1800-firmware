@@ -146,6 +146,7 @@ void SysTick_Handler(void)
 
 /**
   * @brief This function handles TIM7 global interrupt.
+  * This is called 50 times a second to update backlight
   */
 void TIM7_IRQHandler(void)
 {
@@ -175,6 +176,7 @@ void TIM7_IRQHandler(void)
 
 /**
   * @brief This function handles TIM14 global interrupt.
+  * This is called 1000 times per second to detect keystrokes one line at a time
   */
 void TIM14_IRQHandler(void)
 {

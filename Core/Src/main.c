@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "usbd_hid.h"
 #include "mpq3326.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -76,7 +77,7 @@ const backlight_t Indicator_map[4] = {
 		{7, 3}, //Numlock address
 		{7, 0}, //CapsLock adress
 		{7, 1}, //ScrLock address
-		{7, 2}  //CapsLock adress
+		{7, 2}  //MACRO   address
 };
 
 
@@ -323,6 +324,7 @@ void refreshKeys(void){
   */
 int main(void)
 {
+	uint32_t USBDelay;
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -347,6 +349,9 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
+
+  USBDelay = USBD_HID_GetPollingInterval(&hUsbDeviceFS);
+
   MX_TIM14_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
@@ -354,6 +359,7 @@ int main(void)
   HAL_Delay(20);
   //init all led drivers
   initBL();
+
   //start keyboard refresh timer
   HAL_TIM_Base_Start_IT(&htim14);
 
@@ -373,8 +379,9 @@ int main(void)
 	//this while loop can be preempted by either the scan timer interrupt or macro/backlight interrupt
 	//however, the USB PCD routine triggered by USBD_HID_SendReport is highest priority, so it wont be interrupted
 	if(KEY_CHANGE) {
-		while(USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub))) HAL_Delay(10); //USB rate limiting
+		USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&keyBoardHIDsub,sizeof(keyBoardHIDsub));
 		KEY_CHANGE--;
+		HAL_Delay(USBDelay); //USB polling rate is about 100Hz, updating faster than that causes problems
 	}
   }
   /* USER CODE END 3 */

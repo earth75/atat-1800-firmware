@@ -127,7 +127,7 @@ different variations of a keyboard.
 #define Key_KEYPAD_NINE				0x61 // Keypad ``9`` and PgUp
 #define Key_KEYPAD_ZERO				0x62 // Keypad ``0`` and Ins
 #define Key_KEYPAD_PERIOD			0x63 // Keypad ``.`` and Del
-#define Key_KEYPAD_BACKSLASH		0x64 // Keypad ``\\`` and ``|`` (Non-US)
+#define Key_KEYPAD_BACKSLASH		0x64 // Keypad ``\`` and ``|`` (Non-US)
 
 #define Key_APP				0x65 // Application: also known as the Menu key (Windows Key)
 #define Key_POWER			0x66 // Power (Mac)
@@ -147,14 +147,53 @@ different variations of a keyboard.
 #define Key_F23		0x72 // Function key F23
 #define Key_F24		0x73 // Function key F24
 
-#define Key_L_CTL	0xE0 // Control modifier left of the spacebar
+#define Key_L_CTL		0xE0 // Control modifier left of the spacebar
 #define Key_L_SHIFT		0xE1 // Shift modifier left of the spacebar
 #define Key_L_ALT		0xE2 // Alt modifier left of the spacebar
 #define Key_L_WIN		0xE3 // GUI modifier left of the spacebar
-#define Key_R_CTL	0xE4 // Control modifier right of the spacebar
+#define Key_R_CTL		0xE4 // Control modifier right of the spacebar
 #define Key_R_SHIFT		0xE5 // Shift modifier right of the spacebar
 #define Key_R_ALT		0xE6 // Alt modifier right of the spacebar
 #define Key_R_WIN		0xE7 // GUI modifier right of the spacebar
+
+
+
+//consumer Keycodes
+#define MEDIA_RECORD 0xB2
+#define MEDIA_FAST_FORWARD	0xB3
+#define MEDIA_REWIND	 0xB4
+#define MEDIA_NEXT	 0xB5
+#define MEDIA_PREV	 0xB6
+#define MEDIA_STOP	 0xB7
+#define MEDIA_PLAY_PAUSE	 0xCD
+#define MEDIA_PAUSE	 0xB0
+
+#define MEDIA_VOL_MUTE  0xE2
+#define MEDIA_VOL_UP	 0xE9
+#define MEDIA_VOL_DOWN	 0xEA
+
+//A VERIFIER
+#define Key_MEDIA_PLAYPAUSE 0xe8
+#define Key_MEDIA_STOPCD 0xe9
+#define Key_MEDIA_PREVIOUSSONG 0xea
+#define Key_MEDIA_NEXTSONG 0xeb
+#define Key_MEDIA_EJECTCD 0xec
+#define Key_MEDIA_VOLUMEUP 0xed
+#define Key_MEDIA_VOLUMEDOWN 0xee
+#define Key_MEDIA_MUTE 0xef
+#define Key_MEDIA_WWW 0xf0
+#define Key_MEDIA_BACK 0xf1
+#define Key_MEDIA_FORWARD 0xf2
+#define Key_MEDIA_STOP 0xf3
+#define Key_MEDIA_FIND 0xf4
+#define Key_MEDIA_SCROLLUP 0xf5
+#define Key_MEDIA_SCROLLDOWN 0xf6
+#define Key_MEDIA_EDIT 0xf7
+#define Key_MEDIA_SLEEP 0xf8
+#define Key_MEDIA_COFFEE 0xf9
+#define Key_MEDIA_REFRESH 0xfa
+#define Key_MEDIA_CALC 0xfb
+
 
 
 //optimized modifier bit calculator
